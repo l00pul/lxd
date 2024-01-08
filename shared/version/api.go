@@ -407,6 +407,7 @@ var APIExtensions = []string{
 	"container_syscall_intercept_finit_module",
 	"device_usb_serial",
 	"network_allocate_external_ips",
+	"disk_state_created",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
