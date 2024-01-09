@@ -2261,6 +2261,22 @@ func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string,
 		return fmt.Errorf("Failed to add the virtiofs device: %w", err)
 	}
 
+	// Connect to files API.
+	files, err := d.FileSFTP()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = files.Close() }()
+
+	_, err = files.Lstat(mount.TargetPath)
+	if err != nil {
+		err = d.deviceVolatileSetFunc(mount.DevName)(map[string]string{"last_state.created": mount.TargetPath})
+		if err != nil {
+			return fmt.Errorf("Error updating volatile for the device: %w", err)
+		}
+	}
+
 	reverter.Success()
 	return nil
 }
@@ -2280,6 +2296,28 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	err = monHook(monitor)
 	if err != nil {
 		return fmt.Errorf("Failed to call monitor hook for block device: %w", err)
+	}
+
+	return nil
+}
+
+func (d *qemu) unmountPath(deviceName string, rawConfig deviceConfig.Device) error {
+	// First, cleanly unmount the path inside the VM.
+	volatileMountConf := d.deviceVolatileGetFunc(deviceName)()
+	err := d.devlxdDeviceRemove("disk", deviceName, rawConfig, volatileMountConf)
+	if err != nil {
+		return err
+	}
+
+	// Then, remove the volatile key if the path has changed.
+	targetPath := rawConfig["path"]
+	lastPath, ok := volatileMountConf["last_state.created"]
+	if !ok || targetPath != lastPath {
+		// Remove option from the mount.
+		err = d.deviceVolatileSetFunc(deviceName)(map[string]string{"last_state.created": ""})
+		if err != nil {
+			return fmt.Errorf("Error updating volatile for the device: %w", err)
+		}
 	}
 
 	return nil
@@ -2317,6 +2355,12 @@ func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device
 		if time.Now().After(waitUntil) {
 			return fmt.Errorf("Failed to detach path device after %v: %w", waitDuration, err)
 		}
+	}
+
+	// We still need to remove the virtiofs mount inside the VM.
+	err = d.unmountPath(deviceName, rawConfig)
+	if err != nil {
+		return err
 	}
 
 	return nil
