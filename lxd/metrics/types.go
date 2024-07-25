@@ -16,8 +16,12 @@ type MetricSet struct {
 type MetricType int
 
 const (
+	// APICompletedRequests represents the total number completed requests
+	APICompletedRequests MetricType = iota
+	// APIOngoingRequests represents the number of requests currently being handled.
+	APIOngoingRequests MetricType = iota
 	// CPUs represents the total number of effective CPUs.
-	CPUs MetricType = iota
+	CPUs
 	// CPUSecondsTotal represents the total CPU seconds used.
 	CPUSecondsTotal
 	// DiskReadBytesTotal represents the read bytes for a disk.
