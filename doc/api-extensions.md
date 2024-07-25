@@ -2441,3 +2441,10 @@ Adds a `start` field to the `POST /1.0/instances` API which when set
 to `true` will have the instance automatically start upon creation.
 
 In this scenario, the creation and startup is part of a single background operation.
+
+## `metrics_api_requests`
+
+Adds the following internal metrics:
+
+* Total completed requests
+* Number of ongoing requests
