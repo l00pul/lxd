@@ -727,7 +727,16 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
 
-	revert.Add(func() { _ = snap.Delete(true) })
+	revert.Add(func() {
+		switch s := snap.(type) {
+		case *lxc:
+			_ = s.delete(true)
+		case *qemu:
+			_ = s.delete(true)
+		default:
+			panic("Delete snapshot of instance type other than lxc or qemu")
+		}
+	})
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
