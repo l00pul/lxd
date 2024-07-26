@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/metrics"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -207,6 +208,25 @@ func restServer(d *Daemon) *http.Server {
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w)
 	})
+
+	// Initialize API metrics and use middleware functions to update API request metrics.
+	metrics.InitAPIMetrics()
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			metrics.MeasureOngoingRequest(*r.URL)
+			next.ServeHTTP(w, r)
+		})
+	})
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wrapper := &responseWriterWrapper{w, http.StatusInternalServerError}
+			next.ServeHTTP(wrapper, r)
+
+			if wrapper.StatusCode != int(api.OperationCreated) {
+				metrics.MeasureCompletedRequest(*r.URL, wrapper.StatusCode, false)
+			}
+		})
+	}) // This has to be the last middleware function to be defined/called.
 
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
