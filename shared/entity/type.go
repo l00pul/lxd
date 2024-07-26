@@ -97,7 +97,8 @@ const (
 	pathPlaceholder = "{pathArgument}"
 )
 
-var entityTypes = []Type{
+// EntityTypes specifies all entity types recognized by LXD.
+var EntityTypes = []Type{
 	TypeContainer,
 	TypeImage,
 	TypeProfile,
@@ -133,7 +134,7 @@ func (t Type) String() string {
 // Validate returns an error if the Type is not in the list of allowed types. If the allowEmpty argument is set to true
 // an empty string is allowed. This is to accommodate that warnings may not refer to a specific entity type.
 func (t Type) Validate() error {
-	if !shared.ValueInSlice(t, entityTypes) {
+	if !shared.ValueInSlice(t, EntityTypes) {
 		return fmt.Errorf("Unknown entity type %q", t)
 	}
 
@@ -311,7 +312,7 @@ func ParseURL(u url.URL) (entityType Type, projectName string, location string, 
 	pathParts := strings.Split(strings.TrimPrefix(path, "/"+version.APIVersion+"/"), "/")
 
 entityTypeLoop:
-	for _, currentEntityType := range entityTypes {
+	for _, currentEntityType := range EntityTypes {
 		entityPath, err := currentEntityType.path()
 		if err != nil {
 			return "", "", "", nil, fmt.Errorf("Failed to get path of entity type %q: %w", currentEntityType, err)

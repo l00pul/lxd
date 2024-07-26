@@ -396,6 +396,27 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
 	}
 
+	// API request metrics
+	for _, entityType := range entity.EntityTypes {
+		out.AddSamples(
+			metrics.APIOngoingRequests,
+			metrics.Sample{
+				Labels: map[string]string{"entity_type": string(entityType)},
+				Value:  float64(metrics.GetOngoingRequests(entityType)),
+			},
+		)
+
+		for _, status := range metrics.PossibleRequestStatus {
+			out.AddSamples(
+				metrics.APICompletedRequests,
+				metrics.Sample{
+					Labels: map[string]string{"entity_type": string(entityType), "status": string(status)},
+					Value:  float64(metrics.GetCompletedRequests(entityType, status)),
+				},
+			)
+		}
+	}
+
 	// Daemon uptime
 	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
 
