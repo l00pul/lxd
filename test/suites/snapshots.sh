@@ -415,3 +415,29 @@ test_snap_volume_db_recovery() {
   lxc start c1
   lxc delete -f c1
 }
+
+test_snap_fail() {
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  ensure_import_testimage
+
+  if [ "${lxd_backend}" = "zfs" ]; then
+    # Containers should fail to snapshot when root is full (can't write to backup.yaml)
+    lxc launch testimage c1 --device root,size=3GiB
+    lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=100 bs=100M || true
+
+    exitCode=0
+    timeout 30s lxc snapshot c1 || exitCode=$?
+
+    lxc ls
+
+    # If the timeout was reached, probably a deadlock
+    # https://github.com/canonical/lxd/issues/13466
+    [ "${exitCode}" -ne 124 ]
+
+    [ "$(lxc ls -c nS -f csv | awk -F ',' '/c1/{print $2}')" -eq 0 ]
+
+    lxc delete c1
+  fi
+}
