@@ -214,6 +214,16 @@ func restServer(d *Daemon) *http.Server {
 	}
 }
 
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	StatusCode int
+}
+
+func (rw *responseWriterWrapper) WriteHeader(code int) {
+	rw.StatusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		trusted, inst, err := authenticateAgentCert(d.State(), r)
